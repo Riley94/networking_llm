@@ -12,3 +12,4 @@ src/data_loading/__pycache__
 src/model/__pycache__
 ids_alerts.log
 src/nids_llm.egg-info
+src/data_loading/credentials.json
