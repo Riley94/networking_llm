@@ -16,13 +16,14 @@ class Network_Dection_Model(nn.Module):
                  embed_dim_pout, num_pout,
                  embed_dim_proto, num_proto):
         super().__init__()
+        self.continuous = nn.Linear(4, 20)
         self.bin_embed = nn.Embedding(num_embeddings=num_bin, embedding_dim=embed_dim_bin)
         self.bout_embed = nn.Embedding(num_embeddings=num_bout, embedding_dim=embed_dim_bout)
         self.pin_embed = nn.Embedding(num_embeddings=num_pin, embedding_dim=embed_dim_pin)
         self.pout_embed = nn.Embedding(num_embeddings=num_pout, embedding_dim=embed_dim_pout)
         self.proto_embed = nn.Embedding(num_embeddings=num_proto, embedding_dim=embed_dim_proto)
 
-        self.input_dim = 4 + embed_dim_bin + embed_dim_bout + embed_dim_pin + embed_dim_pout + embed_dim_proto
+        self.input_dim = 20 + embed_dim_bin + embed_dim_bout + embed_dim_pin + embed_dim_pout + embed_dim_proto
 
         self.hidden_dim = int(math.ceil((self.input_dim + 1) *.67))
 
@@ -48,13 +49,14 @@ class Network_Dection_Model(nn.Module):
         proto = x[:, 8].to(torch.long)
 
         #Run through embedding layers
+        continuous = self.continuous(continuous_features)
         bin = self.bin_embed(bin)
         bout = self.bout_embed(bout)
         pin = self.pin_embed(pin)
-        pout  = self.pin_embed(pout)
+        pout  = self.pout_embed(pout)
         proto = self.proto_embed(proto)
 
-        x = torch.cat([continuous_features, bin, bout, pin, pout, proto], dim=-1)
+        x = torch.cat([continuous, bin, bout, pin, pout, proto], dim=-1)
         
         x = F.relu(self.linear_1(x))
         x = F.relu(self.linear_2(x))
