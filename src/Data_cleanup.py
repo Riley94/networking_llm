@@ -10,24 +10,8 @@ import pickle
 
 def load_data():
     #Download dataset if not already had
-    print("Loading data...")
     try:
         df = pd.read_parquet(U.raw_data)
-        # Detailed min and max with column names
-        for column in df.columns:
-            print(f"{column}:")
-            print(f"  Min: {df[column].min()}")
-            print(f"  Max: {df[column].max()}")
-        df_2 = pd.read_parquet(U.raw_data_2)
-        for column in df.columns:
-            print(f"{column}:")
-            print(f"  Min: {df[column].min()}")
-            print(f"  Max: {df[column].max()}")
-        df_3 = pd.read_parquet(U.raw_data_3)
-        for column in df.columns:
-            print(f"{column}:")
-            print(f"  Min: {df[column].min()}")
-            print(f"  Max: {df[column].max()}")
     except: 
         import requests
 
@@ -40,27 +24,10 @@ def load_data():
                 file.write(chunk)
 
         print("Dataset downloaded successfully!")
-    print("Concatenating data...")
-    df = pd.concat([df, df_2, df_3], ignore_index=True)
-
-    # Drop rows with any null values
-    df = df.dropna()
-
-    # Print unique values in the 'label' column
-    print("Unique labels:", df['label'].unique())
 
     print(df.head())
     print(set(df['label'].values))
     return df
-
-def balance_classes(df):
-    # Get the minimum count of any label
-    min_count = df['label'].value_counts().min()
-
-    # Sample 'min_count' rows from each class
-    df_balanced = df.groupby('label').apply(lambda x: x.sample(n=min_count, random_state=42)).reset_index(drop=True)
-
-    return df_balanced
 
 def preprocess_data(df):
     '''columns ['avg_ipt', 'bytes_in', 'bytes_out', 'entropy', 'num_pkts_out',
@@ -68,29 +35,8 @@ def preprocess_data(df):
        'creation_date']'''
     df = df.drop(['creation_date'], axis=1)
 
-    '''cols = df.columns
-    original_rows = len(df)
-    df = df[~df[cols].eq(-1).any(axis=1)]
-    print(f"Rows removed: {original_rows - len(df)}")'''
-
     label_map = {'benign': 0, 'outlier': 1, 'malicious': 2}
     df['label'] = df['label'].map(label_map) #map labels to numbers
-
-    #Balance classes
-    print("Balancing class labels...")
-    df = balance_classes(df)
-
-    #Rearrange dataframe
-    #Continuous data = indexes [0:4] (first 4 indexes)
-    df = df[['avg_ipt', 'entropy', 'total_entropy', 'duration', 'bytes_in', 'bytes_out', 'num_pkts_in', 'num_pkts_out', 'proto', 'label']]
-    cols = df.columns
-    print(df.columns)
-    print(df.head())
-    
-
-    data = np.zeros((df.shape[1], df.shape[0])) #Initialize np array of the df size
-
-    print(f"Unique labels: {df['label'].unique()}")
 
     # Calculate counts and percentages
     label_counts = df['label'].value_counts()
@@ -101,6 +47,7 @@ def preprocess_data(df):
     for label, count in label_counts.items():
         percentage = label_percentages[label]
         print(f"{label}: {count} instances ({percentage:.2f}%)")
+
     
     # Create figure
     plt.figure(figsize=(12, 6))
@@ -120,25 +67,21 @@ def preprocess_data(df):
     plt.tight_layout()
     plt.show()
 
-    for column in df.columns:
-        print(f"{column}:")
-        print(f"  Min: {df[column].min()}")
-        print(f"  Max: {df[column].max()}")
+    #Rearrange dataframe
+    #Continuous data = indexes [0:4] (first 4 indexes)
+    df = df[['avg_ipt', 'entropy', 'total_entropy', 'duration', 'bytes_in', 'bytes_out', 'num_pkts_in', 'num_pkts_out', 'proto', 'label']]
 
-    data = torch.zeros(df.shape[1], df.shape[0])
-    for i, col in enumerate(df.columns):
-        data[i] = torch.tensor(df[col].values, dtype=torch.float32)  # Convert to tensor first
+    print(df.columns)
+    print(df.head())
+    
 
-    print(data[0])
+    data = np.zeros((df.shape[1], df.shape[0])) #Initialize np array of the df size
 
-    #data = torch.from_numpy(data)
-    print(torch.unique(data[:, -1]))
-    print(data[:5, :])
-    print(data[-5:, :])
+    #Extract all values from the dataframe into the data array
+    for index, col in enumerate(df.columns):
+        data[index] = df[col].values
 
-    for x in range(len(data)):
-        check_feature = x
-        print(f'min col {cols[x]}: {data[check_feature, torch.argmin(data[check_feature])]}, max: {data[check_feature, torch.argmax(data[check_feature])]}')
+    data = torch.from_numpy(data)
 
     return data
 
@@ -146,7 +89,6 @@ def clean_data():
     df = load_data()
     data = preprocess_data(df)
     torch.save(data, U.clean_data)
-    print("Data saved, cleanup finished.")
 
 if __name__ == "__main__":
     clean_data()

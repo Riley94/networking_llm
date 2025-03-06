@@ -11,8 +11,6 @@ MODEL_FOLDER = (PROJECT_DIR / 'Model').resolve()
 SCALERS_FOLDER = (PROJECT_DIR / 'Scalers').resolve()
 
 raw_data = (U.RAW_DATA_FOLDER / 'LUFlow-2022.parquet').resolve()
-raw_data_2 = (U.RAW_DATA_FOLDER / 'LUFlow-2021.parquet').resolve()
-raw_data_3 = (U.RAW_DATA_FOLDER / 'LUFlow-2020.parquet').resolve()
 clean_data = (U.CLEAN_DATA_FOLDER / 'cleaned_data.pt').resolve()
 training_dataset = (U.CLEAN_DATA_FOLDER / 'training_dataset.pt').resolve()
 feature_map_bin = (U.CLEAN_DATA_FOLDER / 'bin_map.json').resolve()
