@@ -1,354 +1,152 @@
 import pandas as pd
 import numpy as np
 import torch
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import MinMaxScaler
 import HyperParameters as H
 import Utils as U
-import random
-import time
-import pokemon
-import json
-import Defining_States
-import VR
+import pickle
 
-banned = {'9': [], '8': [], '7': [], '6': [], '5': ['cloyster', 'dugtrio']}
-banned_moves = {'5': {'spore', 'sleep powder', 'hypnosis', 'grass whistle', 'sing', 'lovely kiss', 'yawn', 'sleep talk', 'dynamic punch'}}
-banned_abilities = {'5': {'sand rush', 'swift swim'}}
-
-def print_team(team):
-    print(f"{team[0]['name']}, {team[1]['name']}, {team[2]['name']}")
-
-def form_name(name):
-    match name.lower():
-        case 'urshifu':
-            return "Urshifu-Single-Strike"
-        case 'landorus':
-            return "Landorus-Incarnate"
-        case 'thundurus':
-            return "Thundurus-Incarnate"
-        case 'tornadus':
-            return "Tornadus-Incarnate"
-        case 'toxtricity':
-            return "Toxtricity-Low-Key"
-        case 'aegislash':
-            return "Aegislash-Shield"
-        case 'gastrodon-east':
-            return "Gastrodon"
-        case 'darmanitan':
-            return 'Darmanitan-Standard'
-        case 'darmanitan-galar':
-            return 'Darmanitan-Galar-Standard'
-        case 'eiscue':
-            return 'Eiscue-Ice'
-        case 'keldeo':
-            return 'keldeo-resolute'
-        case 'shaymin':
-            return 'shaymin-land'
-        case 'meloetta':
-            return 'meloetta-aria'
-        case 'meowstic':
-            return 'meowstic-male'
-        case 'florges-white':
-            return 'florges'
-        case 'Vivillon-Marine':
-            return 'vivillon'
-        case 'Wishiwashi':
-            return 'wishiwashi-school'
-        case 'Sinistcha-Masterpiece':
-            return 'sinistcha'
-        case _:
-            return name
-
-def revert_form_name(name):
-    match name.lower():
-        case 'darmanitan-standard':
-            return 'darmanitan'
-        case 'darmanitan-galar-standard':
-            return 'darmanitan-galar'
-        case _:
-            return name
-    
 def load_data():
-    teams_list = []
-    with open(U.teams, 'r') as f:
-        team = []
-        error_pokemon = []
-        skipped_pokemon = set()
-        banned_pokemon = set()
-        banned_moves_set = set()
-        banned_abilities_set = set()
-        banned_items_set = set()
-        move_errors = set()
-        making_mon = False
-        making_team = False
-        pkmn = pokemon.Pokemon('', [])
-        for line in f:
-            try:
-                #Making the name and item
-                if line[0:3] == "===":
-                    making_team = True
-                    try:
-                        #print(f"{team[0].name}, {team[1].name}, {team[2].name}, {team[3].name}, {team[4].name}, {team[5].name}")
-                        if len(team) == 6:
-                            #print(team[0].name, team[1].name, team[2].name, team[3].name, team[4].name, team[5].name)
-                            teams_list.append(team)
-                            if (len(teams_list))%20 == 0:
-                                print(f"{len(teams_list)} teams processed")
-                            
-                        team = []
-                    except:
-                        pass
-                if not making_team:
-                    continue
+    #Download dataset if not already had
+    print("Loading data...")
+    try:
+        df = pd.read_parquet(U.raw_data)
+        # Detailed min and max with column names
+        for column in df.columns:
+            print(f"{column}:")
+            print(f"  Min: {df[column].min()}")
+            print(f"  Max: {df[column].max()}")
+        df_2 = pd.read_parquet(U.raw_data_2)
+        for column in df.columns:
+            print(f"{column}:")
+            print(f"  Min: {df[column].min()}")
+            print(f"  Max: {df[column].max()}")
+        df_3 = pd.read_parquet(U.raw_data_3)
+        for column in df.columns:
+            print(f"{column}:")
+            print(f"  Min: {df[column].min()}")
+            print(f"  Max: {df[column].max()}")
+    except: 
+        import requests
 
-                if "@" in line:
-                    making_mon = True
-                    pkmn = pokemon.Pokemon('', [])
-                    ### Handle incorrect formatted named
-                    while line.count('@') > 1: #Handle nicknames with @ in them
-                        line = line.replace('@', '', 1)
-                    name = line.split('@')[0].replace('(M)', '').replace('(F)', '')
-                    if "(" in name:
-                        name = name.split('(')[1].replace(')', '')
-                    name = name.strip(' ').replace(' ', '-').replace(':', '').replace('.', '')
-                    try:
-                        if name in banned[H.gen]:
-                            team = []
-                            making_mon = False
-                            making_team = False
-                            banned_pokemon.add(name)
-                            continue
-                    except:
-                        pass
-                    name = form_name(name)
-                    item = line.split('@')[1].strip()
-                    ####################################
+        url = "https://your-file-hosting.com/dataset.zip"  # Replace with actual URL
+        output_path = "dataset.zip"
 
-                    ###Handle pokeapi exceptions:
-                    if name.split('-')[0] == 'Silvally':
-                        pkmn = pokemon.Pokemon(name.lower(), [name.split('-')[1]])
-                    elif name == 'Zygarde':
-                        pkmn = pokemon.Pokemon(name.lower(), ['dragon', 'ground'])
-                    elif 'Ogerpon-Wellspring' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['grass', 'water'])
-                    elif 'Ogerpon-Hearthflame' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['grass', 'fire'])
-                    elif 'Tauros-Paldea-Aqua' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['fighting', 'water'])
-                    elif 'Oinkologne' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['normal', 'none'])
-                    elif 'Mimikyu' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['ghost', 'fairy'])
-                    elif 'Vivillon' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['bug', 'flying'])
-                    elif 'Enamorus' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['fairy', 'flying'])
-                    elif 'Dudunsparce' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['normal', 'none'])
-                    elif 'Indeedee' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['normal', 'psychic'])
-                    elif 'Maushold' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['normal', 'none'])
-                    elif 'Basculegion' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['water', 'ghost'])
-                    elif 'Florges' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['fairy', 'none'])
-                    elif 'Tauros-Paldea-Blaze' in name:
-                        pkmn = pokemon.Pokemon(name.lower(), ['fire', 'fighting'])
-                    else: 
-                        try:
-                            pkmn = pokemon.get_pokemon(name)
-                        except:
-                            print(name)
-                        if pkmn == None:
-                            if name not in error_pokemon:
-                                try:
-                                    pkmn = pokemon.get_pokemon(line.split('@')[0].replace('(M)', '').replace('(F)', '').split('(')[2].replace(')', '').strip(' ').replace(':', '').lower())
-                                except:
-                                    error_pokemon.append(name)
-                                    print(f"Error: {name}")
-                    try:
-                        if name.lower() not in VR.get_vr():
-                            team = []
-                            making_mon = False
-                            making_team = False
-                            skipped_pokemon.add(name)
-                            continue
-                            
-                    except:
-                        pass
-                    '''print(name)
-                    input()'''
-                    pkmn.item = item
-                    if 'gem' in item.lower() and H.gen == '5':
-                        team = []
-                        making_mon = False
-                        making_team = False
-                        banned_items_set.add(name)
-                        continue
-                    #Finish Name and Item section
+        response = requests.get(url, stream=True)
+        with open(output_path, "wb") as file:
+            for chunk in response.iter_content(chunk_size=8192):
+                file.write(chunk)
 
-                #Handle other pokemon attributes
-                elif 'Ability: ' in line:
-                    pkmn.ability = line.split('Ability: ')[1].strip()
-                    if pkmn.ability.lower() in banned_abilities[H.gen]:
-                        team = []
-                        making_mon = False
-                        making_team = False
-                        banned_abilities_set.add(name)
-                        #print(f"Banned move: {move}")
-                        continue
-                elif 'EVs:' in line:
-                    pkmn.evs = line.split('EVs: ')[1].strip()
-                elif 'Nature' in line:
-                    pkmn.nature = line.split(' ')[0].strip()
-                elif '-' in line and '=' not in line and len(pkmn.moves) < 4:
-                    line = line.replace('-', '', 1)
-                    move = line.strip()
-                    if move.lower() in banned_moves[H.gen]:
-                        team = []
-                        making_mon = False
-                        making_team = False
-                        banned_moves_set.add(name)
-                        #print(f"Banned move: {move}")
-                        continue
-                    pkmn.moves.append(move)
-                #################################
-                
-                elif line.strip() == '' and making_mon:
-                    if len(pkmn.moves) > 4:
-                        team = []
-                        making_mon = False
-                        making_team = False
-                        move_errors.add(name)
-                        continue
-                    if len(team) > 0:
-                        '''#Don't add teams with dupe typings
-                        cur_typings = []
-                        for mon in team:
-                            for typing in mon.types:
-                                cur_typings.append(typing)
-                        dupe_typing = False
-                        for typing in pkmn.types:
-                            if typing in cur_typings and typing != 'none':
-                                dupe_typing = True
-                                break
-                        if not dupe_typing:
-                            team.append(pkmn)
-                        else:
-                            team.append(pkmn)
-                            txt = ""
-                            for mon in team:
-                                txt += f"{mon.name} "
-                            print(txt)
-                            team = []
-                            continue'''
-                        team.append(pkmn)
-                    else:
-                        team.append(pkmn)
-                    making_mon = False
-            except Exception as e:
-                print(f"Error: {line}\n{e}")
+        print("Dataset downloaded successfully!")
+    print("Concatenating data...")
+    df = pd.concat([df, df_2, df_3], ignore_index=True)
 
-        #Clean up last team
-        if len(team) == 6:
-            
-            teams_list.append(team)
+    # Drop rows with any null values
+    df = df.dropna()
 
-    print(f"Errors: {error_pokemon}")
-    print(f"Skipped: {skipped_pokemon}")
-    print(f"Banned moves: {banned_moves_set}")
-    print(f"Banned items: {banned_items_set}")
-    print(f"Banned abilities: {banned_abilities_set}")
-    print(f"Banned pokemon: {banned_pokemon}")
-    print(f"Move Errors: {move_errors}")
-    return teams_list
+    # Print unique values in the 'label' column
+    print("Unique labels:", df['label'].unique())
 
+    print(df.head())
+    print(set(df['label'].values))
+    return df
 
-def preprocess_data(teams_text):
-    pokemon_data = []
-    for team in teams_text:
-        try:
-            pokemon_data.append([team[0].to_dict(), team[1].to_dict(), team[2].to_dict(), team[3].to_dict(), team[4].to_dict(), team[5].to_dict()])
-        except:
-            pass
-    return pokemon_data
+def balance_classes(df):
+    # Get the minimum count of any label
+    min_count = df['label'].value_counts().min()
 
-def clean_teams():
-    # Save the list of lists directly to a JSON file
-    with open(U.processed_teams, 'r') as json_file:
-        pokemon_data = json.load(json_file)
+    # Sample 'min_count' rows from each class
+    df_balanced = df.groupby('label').apply(lambda x: x.sample(n=min_count, random_state=42)).reset_index(drop=True)
 
-    #print(pokemon_data[0])
-    '''pokemon_one = pokemon_data[0][0]
+    return df_balanced
 
-    moves = pokemon_one['moves']
-    print(pokemon.get_move(moves[0]))'''
+def preprocess_data(df):
+    '''columns ['avg_ipt', 'bytes_in', 'bytes_out', 'entropy', 'num_pkts_out',
+       'num_pkts_in', 'proto', 'total_entropy', 'duration', 'label',
+       'creation_date']'''
+    df = df.drop(['creation_date'], axis=1)
 
-    errors = []
-    cleaned_teams = []
+    '''cols = df.columns
+    original_rows = len(df)
+    df = df[~df[cols].eq(-1).any(axis=1)]
+    print(f"Rows removed: {original_rows - len(df)}")'''
 
-    for index, team in enumerate(pokemon_data):
-        error = False
-        for mon in team:
-            moves = []
-            for move in mon['moves']:
-                try:
-                    try:
-                        if 'Hidden Power' in move:
-                            typing = move.split(' ')[2]
-                            move = 'hidden-power'
-                            cur_move = pokemon.get_move(move)
-                            cur_move.name += f"-{typing.lower()}"
-                            cur_move.typing = typing
-                            moves.append(cur_move.to_dict())
-                        else:
-                            cur_move = pokemon.get_move(move)
-                            moves.append(cur_move.to_dict())
-                    except Exception as e:
-                        print(f"Error: {index}; {move}; {e}")
-                        errors.append(move)
-                        error = True
-                except Exception as e:
-                    print(f"Error: {index}; {move}; {e}")
-                    errors.append(move)
-                    error = True
-            mon['moves'] = moves
-            #print(mon['moves'][0])
-        if not error:
-            cleaned_teams.append(team)
-        
-        if index%50 == 0:
-            print(f"processed {index} teams")
+    label_map = {'benign': 0, 'outlier': 1, 'malicious': 2}
+    df['label'] = df['label'].map(label_map) #map labels to numbers
 
-    print(f"Errors: {errors}")
-    print(f"Before: {len(pokemon_data)}, After: {len(cleaned_teams)}")
+    #Balance classes
+    print("Balancing class labels...")
+    df = balance_classes(df)
 
-    print("Saving cleaned teams...")
-    # Save the list of lists directly to a JSON file
-    with open(U.cleaned_teams_loc, 'w') as json_file:
-        json.dump(cleaned_teams, json_file, indent=4)
-    print("Data cleanup completed successfully.")
+    #Rearrange dataframe
+    #Continuous data = indexes [0:4] (first 4 indexes)
+    df = df[['avg_ipt', 'entropy', 'total_entropy', 'duration', 'bytes_in', 'bytes_out', 'num_pkts_in', 'num_pkts_out', 'proto', 'label']]
+    cols = df.columns
+    print(df.columns)
+    print(df.head())
+    
+
+    data = np.zeros((df.shape[1], df.shape[0])) #Initialize np array of the df size
+
+    print(f"Unique labels: {df['label'].unique()}")
+
+    # Calculate counts and percentages
+    label_counts = df['label'].value_counts()
+    label_percentages = label_counts / len(df) * 100
+
+    # Print counts and percentages
+    print("Label Distribution:")
+    for label, count in label_counts.items():
+        percentage = label_percentages[label]
+        print(f"{label}: {count} instances ({percentage:.2f}%)")
+    
+    # Create figure
+    plt.figure(figsize=(12, 6))
+    ax = label_counts.plot(kind='bar', color='steelblue')
+
+    # Primary y-axis: counts
+    plt.ylabel('Count')
+    plt.title('Distribution of Labels: Count and Percentage')
+
+    # Add count labels
+    for i, count in enumerate(label_counts.values):
+        plt.text(i, count + (max(label_counts.values) * 0.02), 
+                f"{count}\n({label_percentages[label_counts.index[i]]:.1f}%)", 
+                ha='center')
+
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+    for column in df.columns:
+        print(f"{column}:")
+        print(f"  Min: {df[column].min()}")
+        print(f"  Max: {df[column].max()}")
+
+    data = torch.zeros(df.shape[1], df.shape[0])
+    for i, col in enumerate(df.columns):
+        data[i] = torch.tensor(df[col].values, dtype=torch.float32)  # Convert to tensor first
+
+    print(data[0])
+
+    #data = torch.from_numpy(data)
+    print(torch.unique(data[:, -1]))
+    print(data[:5, :])
+    print(data[-5:, :])
+
+    for x in range(len(data)):
+        check_feature = x
+        print(f'min col {cols[x]}: {data[check_feature, torch.argmin(data[check_feature])]}, max: {data[check_feature, torch.argmax(data[check_feature])]}')
+
+    return data
 
 def clean_data():
-    print('Loading all the data...')
-    teams_text_raw = load_data()
-
-    print('Preprocessing data...')
-    teams_list = preprocess_data(teams_text_raw)
-
-    print('Saving Teams')
-    # Save the list of lists directly to a JSON file
-    with open(U.processed_teams, 'w') as json_file:
-        json.dump(teams_list, json_file, indent=4)
-
-    print("Cleaning saved teams...")
-    clean_teams()
-
-    print("Formatting teams into pytorch Data")
-    Defining_States.format_data()
-
-    print("Data has all been formatted and saved!")
+    df = load_data()
+    data = preprocess_data(df)
+    torch.save(data, U.clean_data)
+    print("Data saved, cleanup finished.")
 
 if __name__ == "__main__":
     clean_data()
