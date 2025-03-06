@@ -118,15 +118,16 @@ def get_luflow():
     combined_data_path = os.path.join(combined_data_dir, filename)
     os.makedirs(combined_data_dir, exist_ok=True)
 
-    # Authenticate with Google Drive
-    service = authenticate_drive()
+    if not PROCESS_LOCAL:
+        # Authenticate with Google Drive
+        service = authenticate_drive()
 
-    # Check if the file exists on Google Drive
-    file_id = check_drive_file_exists(service, filename)
+        # Check if the file exists on Google Drive
+        file_id = check_drive_file_exists(service, filename)
 
-    if not PROCESS_LOCAL and file_id:
-        # Download the file from Google Drive
-        download_from_drive(service, file_id, combined_data_path)
+        if file_id:
+            # Download the file from Google Drive
+            download_from_drive(service, file_id, combined_data_path)
     else:
         if not (os.path.exists(data_path) or os.path.exists(combined_data_path)) or OVERWRITE: # if either of the paths exist, don't download
             # Download latest version

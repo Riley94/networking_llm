@@ -13,7 +13,7 @@ class IntrusionDetectionSystem:
         self.detection_engine = DetectionEngine()
         self.alert_system = AlertSystem(
             log_file="ids_alerts.log",
-            llm_endpoint="https://your-ngrok-url/analyze_alert"
+            #llm_endpoint="[YOUR_GROK_ENDPOINT]/analyze_alert"
         )
 
     def start(self):
