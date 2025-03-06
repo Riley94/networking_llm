@@ -29,7 +29,6 @@ class IntrusionDetectionSystem:
             try:
                 # Get packet with timeout
                 packet = self.packet_capture.packet_queue.get(timeout=1)
-                
                 # Analyze packet and extract features
                 features = self.traffic_analyzer.analyze_packet(packet)
                 
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     TRAIN = True
     if TRAIN:
         print("Loading training data...")
-        train_data = get_luflow()
+        train_data = get_luflow(num_rows=75_000)
         print("Training anomaly detector...")
         ids.detection_engine.train_anomaly_detector(train_data)
     

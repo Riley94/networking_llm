@@ -22,4 +22,4 @@ Logic Flow:
         ii. check every thread call for stop request
         iii. only queue tcp/ip packets
     c. get next packet in queue
-    d. analyze packets, retieving statistics until flow completion (needs review)
+    d. analyze packets, retrieve statistics until flow completion (needs review)

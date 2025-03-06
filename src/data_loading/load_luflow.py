@@ -5,17 +5,16 @@ from tqdm import tqdm
 
 from data_loading.tools import reduce_mem_usage
 
-import gdown
+#import gdown
 from tqdm import tqdm
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2 import service_account
+#from googleapiclient.discovery import build
+#from googleapiclient.http import MediaFileUpload
+#from google.oauth2 import service_account
 import tempfile
 import shutil
 
 # Set your Google Drive Folder ID where the combined file will be stored
 GDRIVE_FOLDER_ID = "luflow_full"
-PROCESS_LOCAL = True
 
 def authenticate_drive():
     """Authenticate and return the Google Drive service."""
@@ -103,9 +102,7 @@ def combine_luflow(data_path, save_path, chunk_size=100_000):
         # Clean up temp directory
         shutil.rmtree(temp_dir)
 
-def get_luflow():
-    OVERWRITE = False
-
+def get_luflow(num_rows=750_000, process_local=True, overwrite=False):
     # Path to the cached dataset
     cache_path = os.path.expanduser("~/.cache/kagglehub/datasets")
     data_path = os.path.join(cache_path, "mryanm/luflow-network-intrusion-detection-data-set/versions/240")
@@ -118,7 +115,7 @@ def get_luflow():
     combined_data_path = os.path.join(combined_data_dir, filename)
     os.makedirs(combined_data_dir, exist_ok=True)
 
-    if not PROCESS_LOCAL:
+    if not process_local:
         # Authenticate with Google Drive
         service = authenticate_drive()
 
@@ -129,18 +126,22 @@ def get_luflow():
             # Download the file from Google Drive
             download_from_drive(service, file_id, combined_data_path)
     else:
-        if not (os.path.exists(data_path) or os.path.exists(combined_data_path)) or OVERWRITE: # if either of the paths exist, don't download
+        if not (os.path.exists(data_path) or os.path.exists(combined_data_path)) or overwrite: # if either of the paths exist, don't download
+            print("Downloading LUFlow dataset...")
             # Download latest version
             data_path = kagglehub.dataset_download("mryanm/luflow-network-intrusion-detection-data-set")
 
-        if not os.path.exists(combined_data_path) or OVERWRITE:
+        if not os.path.exists(combined_data_path) or overwrite:
+            print("Combining LUFlow dataset...")
             combine_luflow(data_path, combined_data_path)
             # remove cache data_path
             os.system(f"rm -rf {data_path}")
 
-    data = pd.read_csv(combined_data_path, nrows=750_000)
+    print("Loading combined LUFlow dataset...")
+    data = pd.read_csv(combined_data_path, nrows=num_rows)
     data.drop(['src_ip', 'dest_ip', 'time_start', 'time_end', 'label'], axis=1, inplace=True)
     data.dest_port = data.dest_port.fillna(-1).astype('int64')
     data.src_port = data.src_port.fillna(-1).astype('int64')
     data = reduce_mem_usage(data)
+    print(f"Columns: {data.columns}")
     return data.to_numpy()
