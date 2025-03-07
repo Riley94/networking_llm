@@ -102,7 +102,7 @@ def combine_luflow(data_path, save_path, chunk_size=100_000):
         # Clean up temp directory
         shutil.rmtree(temp_dir)
 
-def get_luflow(num_rows=750_000, process_local=True, overwrite=False):
+def get_luflow(num_rows=750_000, process_local=True, overwrite=False, raw=False):
     # Path to the cached dataset
     cache_path = os.path.expanduser("~/.cache/kagglehub/datasets")
     data_path = os.path.join(cache_path, "mryanm/luflow-network-intrusion-detection-data-set/versions/240")
@@ -137,6 +137,10 @@ def get_luflow(num_rows=750_000, process_local=True, overwrite=False):
             # remove cache data_path
             os.system(f"rm -rf {data_path}")
 
+    # primarily for analysis in notebooks
+    if raw:
+        return pd.read_csv(combined_data_path, nrows=num_rows)
+    
     print("Loading combined LUFlow dataset...")
     data = pd.read_csv(combined_data_path, nrows=num_rows)
     data.drop(['src_ip', 'dest_ip', 'time_start', 'time_end', 'label'], axis=1, inplace=True)
