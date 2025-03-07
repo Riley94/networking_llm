@@ -158,9 +158,9 @@ class TestTrafficAnalyzer(unittest.TestCase):
         self.assertEqual(result['proto'], 6)
         self.assertEqual(result['src_port'], 12345)
         self.assertEqual(result['dest_port'], 80)
-        self.assertEqual(result['Year'], 2025)
-        self.assertEqual(result['Month'], 3)
-        self.assertEqual(result['Day'], 6)
+        self.assertEqual(result['Year'], datetime.now().year)
+        self.assertEqual(result['Month'], datetime.now().month)
+        self.assertEqual(result['Day'], datetime.now().day)
 
     @patch('datetime.datetime')
     def test_analyze_packet_fin_flag(self, mock_datetime):
