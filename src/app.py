@@ -5,7 +5,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Load the DialoGPT model and tokenizer
-model_name = "microsoft/DialoGPT-medium"
+model_name = "openai-community/gpt2"
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -61,7 +61,7 @@ def home():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    """Handles chatbot-style queries using DialoGPT"""
+    """Handles chatbot-style queries using GPT-2"""
     data = request.json
     question = data.get("question", "").strip()
     
@@ -70,23 +70,25 @@ def generate():
 
     user_id = request.remote_addr  # Use IP as a basic session ID
     if user_id not in chat_histories:
-        chat_histories[user_id] = [
-            {"role": "system", "content": "You are a helpful chatbot."}
-        ]
+        chat_histories[user_id] = []
 
     # Append the user query
-    chat_histories[user_id].append({"role": "user", "content": question})
+    chat_histories[user_id].append(f"User: {question}")
+
+    # Format conversation history into a single string
+    conversation = "\n".join(chat_histories[user_id]) + "\nBot:"
 
     # Generate response
-    outputs = pipe(chat_histories[user_id], max_new_tokens=512)
+    outputs = pipe(conversation, max_new_tokens=100, pad_token_id=tokenizer.eos_token_id)
     
-    # Extract the generated response
-    response_text = outputs[0]["generated_text"][-1]["content"]
+    # Extract generated response
+    response_text = outputs[0]["generated_text"].split("Bot:")[-1].strip()
 
     # Append chatbot response to history
-    chat_histories[user_id].append({"role": "assistant", "content": response_text})
+    chat_histories[user_id].append(f"Bot: {response_text}")
 
     return jsonify({"answer": response_text})
+
 
 @app.route("/analyze_alert", methods=["POST"])
 def analyze_alert():

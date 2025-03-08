@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 
 class AlertSystem:
-    def __init__(self, log_file="ids_alerts.log", llm_endpoint="http://localhost:5000/analyze_alert"):
+    def __init__(self, log_file="ids_alerts.log", llm_endpoint=None):
         # Set up logging
         self.logger = logging.getLogger("IDS_Alerts")
         self.logger.setLevel(logging.INFO)
@@ -13,9 +13,10 @@ class AlertSystem:
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
         
-        # LLM endpoint and chat history storage
-        self.llm_endpoint = llm_endpoint
-        self.chat_histories = {}
+        if llm_endpoint:
+            # LLM endpoint and chat history storage
+            self.llm_endpoint = llm_endpoint
+            self.chat_histories = {}
 
     def generate_alert(self, threat, packet_info):
         """Generates an alert and optionally sends it to LLM for further analysis."""

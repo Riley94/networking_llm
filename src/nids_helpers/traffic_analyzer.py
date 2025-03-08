@@ -89,7 +89,6 @@ class TrafficAnalyzer:
             "proto": proto,
             "src_port": src_port,
             "total_entropy": total_entropy,
-            "label": 0,  # Default label
             "duration": duration,
             "Year": current_time.year,
             "Month": current_time.month,
@@ -143,9 +142,9 @@ class TrafficAnalyzer:
             if hasattr(packet.tcp, 'flags'):
                 try:
                     flags = int(packet.tcp.flags, 16)  # Convert to an integer
-                    if flags & 0x01:  # FIN flag
+                    if flags & 0x01:  # FIN flag - graceful closure
                         stats['fin_seen'] = True
-                    if flags & 0x04:  # RST flag
+                    if flags & 0x04:  # RST flag - abrupt reset
                         stats['rst_seen'] = True
                 except ValueError:
                     print("Could not parse TCP flags:", packet.tcp.flags)

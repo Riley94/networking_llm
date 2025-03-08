@@ -3,28 +3,32 @@ from nids_helpers.traffic_analyzer import TrafficAnalyzer
 from nids_helpers.detection_engine import DetectionEngine
 from nids_helpers.alert_system import AlertSystem
 import queue
+import subprocess
 from data_loading.load_luflow import get_luflow
 
 class IntrusionDetectionSystem:
-    def __init__(self, interface="wlo1"):
+    def __init__(self):
         self.packet_capture = PacketCapture()
         self.traffic_analyzer = TrafficAnalyzer()
         self.detection_engine = DetectionEngine()
         self.alert_system = AlertSystem(
             log_file="ids_alerts.log",
-            llm_endpoint="https://your-ngrok-url/analyze_alert"
+            #llm_endpoint="[YOUR_GROK_ENDPOINT]/analyze_alert"
         )
-        self.interface = interface
 
     def start(self):
-        print(f"Starting IDS on interface {self.interface}")
-        self.packet_capture.start_capture(self.interface)
+        interface = choose_interface()
+        if interface:
+            print(f"Starting IDS on interface {interface}")
+            self.packet_capture.start_capture(interface)
+        else:
+            print("No valid interface selected. Exiting.")
+            return
         
         while True:
             try:
                 # Get packet with timeout
                 packet = self.packet_capture.packet_queue.get(timeout=1)
-                
                 # Analyze packet and extract features
                 features = self.traffic_analyzer.analyze_packet(packet)
                 
@@ -58,6 +62,40 @@ class IntrusionDetectionSystem:
                 print(f"Unexpected error processing packet: {e}")
                 continue
 
+def get_interfaces():
+    """Retrieve available network interfaces using tshark."""
+    try:
+        output = subprocess.check_output(["tshark", "-D"]).decode("utf-8")
+        interfaces = [line.split(". ", 1)[1].split(" ")[0] for line in output.strip().split("\n")]
+        return interfaces
+    except subprocess.CalledProcessError:
+        print("Error: Unable to retrieve network interfaces. Ensure TShark is installed and has the necessary permissions.")
+        return []
+    
+def choose_interface():
+    interfaces = get_interfaces()
+
+    if not interfaces:
+        print("No interfaces found. Exiting.")
+        return
+    
+    print("Available network interfaces:")
+    for idx, iface in enumerate(interfaces, start=1):
+        print(f"{idx}. {iface}")
+
+    while True:
+        try:
+            choice = int(input("Select an interface (number): "))
+            if 1 <= choice <= len(interfaces):
+                selected_interface = interfaces[choice - 1]
+                break
+            else:
+                print("Invalid choice. Please select a valid number.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    return selected_interface
+
 if __name__ == "__main__":
     # Initialize IDS with default interface
     ids = IntrusionDetectionSystem()
@@ -66,7 +104,7 @@ if __name__ == "__main__":
     TRAIN = True
     if TRAIN:
         print("Loading training data...")
-        train_data = get_luflow()
+        train_data = get_luflow(num_rows=75_000)
         print("Training anomaly detector...")
         ids.detection_engine.train_anomaly_detector(train_data)
     

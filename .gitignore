@@ -7,8 +7,11 @@ bin
 share
 *.zip
 data
-src/nids_helpers/__pycache__
-src/data_loading/__pycache__
-src/model/__pycache__
 ids_alerts.log
 src/nids_llm.egg-info
+src/__pycache__
+src/nids_helpers/__pycache__
+src/data_loading/__pycache__
+src/data_loading/credentials.json
+src/model/__pycache__
+src/tests/__pycache__

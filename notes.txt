@@ -1,0 +1,25 @@
+Logic Flow:
+
+1. nids initialized
+    a. PacketCapture initialized
+        i. packet queue initialized
+
+    b. TrafficAnalyzer initialized
+        i. flow timeout/stats initialized
+
+    c. DetectionEngine initialized
+        i. IsolationForest (need to change to autoencoder) initialized
+        ii. signature rules set (not yet done)
+    
+    d. AlertSystem initialized
+        i. Initialize logging, llm if available.
+
+2. Load luflow data and train classification model, if needed.
+3. Start nids
+    a. choose network interface to capture packets on
+    b. start packet capture
+        i. start pyshark LiveCapture thread on given interface
+        ii. check every thread call for stop request
+        iii. only queue tcp/ip packets
+    c. get next packet in queue
+    d. analyze packets, retrieve statistics until flow completion (needs review)
