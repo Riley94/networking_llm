@@ -1,4 +1,5 @@
 from collections import defaultdict
+from queue import Queue
 from datetime import datetime
 from typing import Dict, Tuple, List
 import numpy as np
@@ -19,7 +20,7 @@ class TrafficAnalyzer:
             'fin_seen': False,
             'rst_seen': False
         })
-        self.completed_flows: List[Dict] = []
+        self.completed_flows = Queue(100) # maxsize=100, arbitrary limit
 
     def compute_entropy(self, payloads: List[bytes]) -> float:
         if not payloads:
@@ -96,7 +97,7 @@ class TrafficAnalyzer:
         }
         
         # Add to completed flows and cleanup
-        self.completed_flows.append(flow_features)
+        self.completed_flows.put(flow_features)
         del self.flow_stats[flow_key]
         
         return flow_features
@@ -154,6 +155,7 @@ class TrafficAnalyzer:
                 return self.finalize_flow(flow_key, proto, port_src, port_dst)
             
             # For active flows, return current features
+            # may use this later, for packet-level analysis
             current_entropy = self.compute_entropy(stats['payloads'])
             current_duration = current_time - stats['start_time']
             current_time_obj = datetime.now()

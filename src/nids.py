@@ -30,21 +30,23 @@ class IntrusionDetectionSystem:
                 # Get packet with timeout
                 packet = self.packet_capture.packet_queue.get(timeout=1)
                 # Analyze packet and extract features
-                features = self.traffic_analyzer.analyze_packet(packet)
+                packet_features = self.traffic_analyzer.analyze_packet(packet)
+                # flow queue
+                flow_features = self.traffic_analyzer.get_completed_flows()
                 
-                if features:
+                if flow_features:
                     # Detect threats based on features
-                    threats = self.detection_engine.detect_threats(features)
-                    print(f"Detected threats: {threats}")
-                    for threat in threats:
-                        # Create packet info dictionary using pyshark attributes
+                    threat = self.detection_engine.detect_threats(flow_features.get())
+                    print(f"Detected threat: {threat}")
+                    if threat:
                         packet_info = {
                             'source_ip': packet.ip.src,
                             'destination_ip': packet.ip.dst,
                             'source_port': int(packet.tcp.srcport),
-                            'destination_port': int(packet.tcp.dstport)
+                            'destination_port': int(packet.tcp.dstport),
+                            'protocol': int(packet.ip.proto),
+                            'timestamp': packet.sniff_time
                         }
-                        
                         # Generate alert for detected threat
                         self.alert_system.generate_alert(threat, packet_info)
                         
@@ -101,7 +103,7 @@ if __name__ == "__main__":
     ids = IntrusionDetectionSystem()
     
     # Train the anomaly detector if needed
-    TRAIN = True
+    TRAIN = False
     if TRAIN:
         print("Loading training data...")
         train_data = get_luflow(num_rows=75_000)
