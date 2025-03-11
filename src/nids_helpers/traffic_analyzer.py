@@ -180,5 +180,5 @@ class TrafficAnalyzer:
 
         return None
 
-    def get_completed_flows(self) -> List[Dict]:
+    def get_completed_flows(self) -> Queue[Dict]:
         return self.completed_flows
