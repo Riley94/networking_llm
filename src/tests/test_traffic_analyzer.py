@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 from datetime import datetime
 from collections import defaultdict
+from queue import Queue
 
 # Import TrafficAnalyzer directly from the current directory
 from nids_helpers.traffic_analyzer import TrafficAnalyzer
@@ -15,8 +16,8 @@ class TestTrafficAnalyzer(unittest.TestCase):
         """Test the initialization of TrafficAnalyzer."""
         self.assertEqual(self.analyzer.flow_timeout, 60)
         self.assertIsInstance(self.analyzer.flow_stats, defaultdict)
-        self.assertIsInstance(self.analyzer.completed_flows, list)
-        self.assertEqual(len(self.analyzer.completed_flows), 0)
+        self.assertIsInstance(self.analyzer.completed_flows, Queue)
+        self.assertEqual(self.analyzer.completed_flows.qsize(), 0)
 
     def test_compute_entropy_empty(self):
         """Test entropy computation with empty payloads."""
@@ -118,8 +119,8 @@ class TestTrafficAnalyzer(unittest.TestCase):
         self.assertEqual(flow_features['duration'], 10.0)
         
         # Verify the flow was added to completed_flows
-        self.assertEqual(len(self.analyzer.completed_flows), 1)
-        self.assertEqual(self.analyzer.completed_flows[0], flow_features)
+        self.assertEqual(self.analyzer.completed_flows.qsize(), 1)
+        self.assertEqual(self.analyzer.completed_flows.get(), flow_features)
         
         # Verify the flow was removed from active flows
         self.assertNotIn(flow_key, self.analyzer.flow_stats)
@@ -204,10 +205,12 @@ class TestTrafficAnalyzer(unittest.TestCase):
         result = self.analyzer.analyze_packet(packet)
         
         # Verify the flow was finalized due to FIN flag
-        self.assertEqual(len(self.analyzer.completed_flows), 1)
-        self.assertEqual(self.analyzer.completed_flows[0]['proto'], 6)
-        self.assertEqual(self.analyzer.completed_flows[0]['src_port'], 12345)
-        self.assertEqual(self.analyzer.completed_flows[0]['dest_port'], 80)
+        # Verify the flow was added to completed_flows
+        self.assertEqual(self.analyzer.completed_flows.qsize(), 1)
+        next_flow = self.analyzer.completed_flows.get()
+        self.assertEqual(next_flow['proto'], 6)
+        self.assertEqual(next_flow['src_port'], 12345)
+        self.assertEqual(next_flow['dest_port'], 80)
 
     def test_analyze_packet_timeout(self):
         """Test analyzing a packet that triggers flow timeout."""
@@ -255,8 +258,8 @@ class TestTrafficAnalyzer(unittest.TestCase):
         flow_features = self.analyzer.finalize_flow(flow_key, proto, src_port, dest_port)
         
         # Verify flow was added to completed_flows
-        self.assertEqual(len(self.analyzer.completed_flows), 1)
-        self.assertEqual(self.analyzer.completed_flows[0], flow_features)
+        self.assertEqual(self.analyzer.completed_flows.qsize(), 1)
+        self.assertEqual(self.analyzer.completed_flows.get(), flow_features)
 
     def test_analyze_packet_invalid(self):
         """Test analyzing an invalid packet (no IP or TCP layer)."""
@@ -271,17 +274,16 @@ class TestTrafficAnalyzer(unittest.TestCase):
     def test_get_completed_flows(self):
         """Test retrieving the completed flows."""
         # Add some completed flows
-        self.analyzer.completed_flows = [
-            {'src_port': 12345, 'dest_port': 80},
-            {'src_port': 54321, 'dest_port': 443}
-        ]
+        self.analyzer.completed_flows = Queue()
+        self.analyzer.completed_flows.put({'src_port': 12345, 'dest_port': 80})
+        self.analyzer.completed_flows.put({'src_port': 54321, 'dest_port': 443})
         
         flows = self.analyzer.get_completed_flows()
         
         # Verify we get the correct flows
-        self.assertEqual(len(flows), 2)
-        self.assertEqual(flows[0]['src_port'], 12345)
-        self.assertEqual(flows[1]['src_port'], 54321)
+        self.assertEqual(flows.qsize(), 2)
+        self.assertEqual(flows.get()['src_port'], 12345)
+        self.assertEqual(flows.get()['src_port'], 54321)
 
 if __name__ == '__main__':
     unittest.main()
