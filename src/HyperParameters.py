@@ -9,7 +9,7 @@ CLASSES = ['Benign', 'Outlier', 'Malicious']
 #Model name
 MODEL_NAME = 'Model_0'
 BATCH_SIZE = 16
-LEARNING_RATE = .001
+LEARNING_RATE = .0001
 EPOCHS = 50
 PATIENCE = 3
 OUTPUT_DIM = 3

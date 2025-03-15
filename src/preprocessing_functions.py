@@ -21,8 +21,9 @@ def map_values(training_dataset):
         feature_map_bout[f'{int(item)}'] = i
 
     proto_set = sorted(list(set(training_dataset.data[8].tolist())))
+    feature_map_proto['0'] = 0
     for i, item in enumerate(proto_set):
-        feature_map_proto[f'{int(item)}'] = i
+        feature_map_proto[f'{int(item)}'] = i + 1
     
     return feature_map_bin, feature_map_bout, feature_map_proto, original_bin, original_bout
 

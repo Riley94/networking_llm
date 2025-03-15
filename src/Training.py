@@ -23,6 +23,8 @@ from sklearn.preprocessing import MinMaxScaler
 device = H.device
 print(device)
 
+cols = ['avg_ipt', 'entropy', 'total_entropy', 'duration','bytes_in', 'bytes_out', 'num_pkts_in', 'num_pkts_out', 'proto', 'label']
+
 # Load or preprocess data
 try:
     # Load the preprocessed data stored in .pt files
@@ -35,13 +37,50 @@ except:
     Data_cleanup.clean_data()
     data = torch.load(U.clean_data, weights_only=True)
 
-print(f'data_shape: {data.shape}')
+def reduce_dataset(data, max_samples_per_class=None):
+    labels = data[:, -1]
+    unique_labels, label_counts = torch.unique(labels, return_counts=True)
 
-shrink = int(len(data[0])/10)
-print(shrink)
-data = data[:, :shrink]
+    if max_samples_per_class is None:
+        max_samples_per_class = label_counts.min().item()
 
-print(data.shape)
+    print("Initial Label Distribution:")
+    for label, count in zip(unique_labels, label_counts):
+        print(f"Label {label.item()}: {count.item()} samples")
+    
+    balanced_mask = torch.zeros(len(data), dtype=torch.bool)
+    
+    for label in unique_labels:
+        label_indices = torch.where(labels == label)[0]
+        
+        num_samples_to_keep = min(max_samples_per_class, len(label_indices))  # Fix out-of-bounds
+        selected_indices = torch.randperm(len(label_indices))[:num_samples_to_keep]
+        
+        balanced_mask[label_indices[selected_indices]] = True
+
+    reduced_data = data[balanced_mask]
+
+    final_labels = reduced_data[:, -1]
+    final_unique, final_counts = torch.unique(final_labels, return_counts=True)
+
+    print("Reduced Dataset Label Distribution:")
+    for label, count in zip(final_unique, final_counts):
+        print(f"Label {label.item()}: {count.item()} samples")
+
+    return reduced_data
+
+def separate_by_label(data):
+    # Separate features and labels
+    X = data[:, :-1]  # All columns except the last one (features)
+    y = data[:, -1]   # Last column (labels)
+
+    # Get unique labels
+    unique_labels = torch.unique(y)
+
+    # Dictionary to store tensors for each label
+    label_tensors = {label.item(): X[y == label] for label in unique_labels}
+
+    return label_tensors
 
 ###Finish loading data###
 
@@ -54,14 +93,38 @@ def save_scalers(scalers, save_dir='./scalers/'):
     
     # Save scalers
     for i, scaler in enumerate(scalers):
-        with open(f'{save_dir}X1_scaler_{H.continuous_variables[i]}.pkl', 'wb') as f:
+        with open(f'{save_dir}{i}X1_scaler_{H.continuous_variables[i]}.pkl', 'wb') as f:
             pickle.dump(scaler, f)
+
+print(data[0])
+
+for x in range(len(data)):
+    check_feature = x
+    print(f'min col {cols[x]}: {data[check_feature, torch.argmin(data[check_feature])]}, max: {data[check_feature, torch.argmax(data[check_feature])]}')
+
+data = data.T
+data = reduce_dataset(data, 150000)
+# If labels are integers
+unique_labels, counts = torch.unique(data[:, -1], return_counts=True)
+
+# Print the counts
+for label, count in zip(unique_labels, counts):
+    print(f"Label {label.item()}: {count.item()} occurrences")
+
+data = data.T
+
+print(f'data_shape: {data.shape}')
+
+print(data[:, -1])
 
 ### Make train test split ###
 # Transpose to make it (samples, features) for sklearn
+
 data_transposed = data.T
+print(f"data_transposed {data_transposed.shape}")
 
 # Split with random state for reproducibility
+print("Making train test split")
 train_transposed, test_transposed = train_test_split(
     data_transposed, 
     test_size=0.2, 
@@ -69,25 +132,37 @@ train_transposed, test_transposed = train_test_split(
     shuffle=True
 )
 
+print(train_transposed.shape)
+print(test_transposed.shape)
+
 # Transpose back to original orientation (features, samples)
-train = train_transposed.T
-test = test_transposed.T
+train = train_transposed
+test = test_transposed
 
 #Save test tensor for testing the model inference
 torch.save(test, U.test_data)
 
 #Turn into numpy arrays for sklearn
-train = train.numpy()
-test = test.numpy()
+train = train.numpy().T
+test = test.numpy().T
+
+print(train.shape)
+print(test.shape)
 
 ### Scale Continuous Variables ###
 # 
 train_scalers = [] #Store scalars to be saved and used on new data
+
 for index in range(4):
+    print(f'index: {index}')
+    print(train[index].shape)
     scaler = MinMaxScaler(feature_range=(-1, 1))  # Create a new scaler
-    train[index] = scaler.fit_transform(train[index].reshape(-1, 1)).flatten()
-    test[index] = scaler.transform(test[index].reshape(-1, 1)).flatten()
+    train[index, :] = scaler.fit_transform(train[index].reshape(-1, 1)).flatten()
+    test[index, :] = scaler.transform(test[index].reshape(-1, 1)).flatten()
     train_scalers.append(scaler)
+
+print(train.shape)
+print(test.shape)
 
 save_scalers(train_scalers)
 
@@ -95,10 +170,39 @@ save_scalers(train_scalers)
 train = torch.from_numpy(train.astype(np.float32))
 test = torch.from_numpy(test.astype(np.float32))
 
-check_feature = 4
-print(train[check_feature, torch.argmin(train[check_feature])], train[check_feature, torch.argmax(train[check_feature])])
+for x in range(len(data)):
+    check_feature = x
+    print(f'min col {cols[x]}: {train[check_feature, torch.argmin(train[check_feature])]}, max: {train[check_feature, torch.argmax(train[check_feature])]}')
+    print(f'min col {cols[x]}: {test[check_feature, torch.argmin(test[check_feature])]}, max: {test[check_feature, torch.argmax(test[check_feature])]}')
 
-print(f'min: {train[check_feature, torch.argmin(train[check_feature])]}, max: {train[check_feature, torch.argmax(train[check_feature])]}')
+# If labels are integers
+unique_labels, counts = torch.unique(train[-1, :], return_counts=True)
+
+# Print the counts
+for label, count in zip(unique_labels, counts):
+    print(f"Train Labels {label.item()}: {count.item()} occurrences")
+
+# If labels are integers
+unique_labels, counts = torch.unique(test[-1, :], return_counts=True)
+
+# Print the counts
+for label, count in zip(unique_labels, counts):
+    print(f"Test Labels {label.item()}: {count.item()} occurrences")
+
+'''train = train.T
+test = test.T'''
+
+print(train.shape)
+print(test.shape)
+
+"""
+'avg_ipt', 'entropy', 'total_entropy', 'duration', [0: 4]
+'bytes_in', 4
+'bytes_out', 5
+'num_pkts_in', 6
+'num_pkts_out', 7
+'proto', 8
+"""
 
 ### Make Dataset ###
 Train_Dataset = D.LUFlow_ND_Dataset(train)
@@ -112,6 +216,10 @@ feature_map_bin, feature_map_bout, feature_map_proto, original_bin, original_bou
 Train_Dataset.data[4, :] = torch.tensor([feature_map_bin[str(int(val.item()))] for val in Train_Dataset.data[4, :]])
 Train_Dataset.data[5, :] = torch.tensor([feature_map_bout[str(int(val.item()))] for val in Train_Dataset.data[5, :]])
 Train_Dataset.data[8, :] = torch.tensor([feature_map_proto[str(int(val.item()))] for val in Train_Dataset.data[8, :]])
+
+print(len(Train_Dataset.data))
+print(len(Test_Dataset.data))
+
 print(f'1: {Train_Dataset.data[4, torch.argmax(Train_Dataset.data[4])]}')
 print(f'2: {original_bin[torch.argmax(original_bin)]}')
 
@@ -128,7 +236,22 @@ for i, item in enumerate(Test_Dataset.data[5]): #For bout
 # Explicitly assign back to ensure updates stick
 Test_Dataset.data[4, :] = torch.tensor([feature_map_bin[str(int(val.item()))] for val in Test_Dataset.data[4, :]])
 Test_Dataset.data[5, :] = torch.tensor([feature_map_bout[str(int(val.item()))] for val in Test_Dataset.data[5, :]])
-Test_Dataset.data[8, :] = torch.tensor([feature_map_proto[str(int(val.item()))] for val in Test_Dataset.data[8, :]])
+try:
+    Test_Dataset.data[8, :] = torch.tensor([
+        feature_map_proto[str(int(val.item()))] 
+        for val in Test_Dataset.data[8, :]
+    ])
+except KeyError as e:
+    # Create a new list to store the transformed values
+    transformed_values = []
+    for val in Test_Dataset.data[8, :]:
+        try:
+            transformed_values.append(feature_map_proto[str(int(val.item()))])
+        except KeyError:
+            transformed_values.append(0) #Padding 0 value
+    
+    # Assign the transformed values back to the dataset
+    Test_Dataset.data[8, :] = torch.tensor(transformed_values)
 
 ### Initialize Dataloaders ###
 Train_Loader = DataLoader(Train_Dataset, batch_size=H.BATCH_SIZE, shuffle=True)
@@ -194,6 +317,8 @@ epochs_no_improve = 0
 percentage_update = .25
 update = int(len(Train_Loader) * percentage_update)
 amt = 0
+
+
 
 for epoch in range(H.EPOCHS):
     print(f"=== EPOCH {epoch + 1} ===")
