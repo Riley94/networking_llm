@@ -5,7 +5,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Load the DialoGPT model and tokenizer
-model_name = "openai-community/gpt2"
+model_name = "meta-llama/Llama-2-7b-chat-hf"
 model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto")
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -76,10 +76,19 @@ def generate():
     chat_histories[user_id].append(f"User: {question}")
 
     # Format conversation history into a single string
-    conversation = "\n".join(chat_histories[user_id]) + "\nBot:"
+    system_prompt = "You are a helpful and friendly AI assistant. Answer questions accurately and concisely."
+    conversation = system_prompt + "\n\n" + "\n".join(chat_histories[user_id]) + "\nBot:"
 
     # Generate response
-    outputs = pipe(conversation, max_new_tokens=100, pad_token_id=tokenizer.eos_token_id)
+    outputs = pipe(
+        conversation, 
+        max_new_tokens=100,
+        pad_token_id=tokenizer.eos_token_id,
+        do_sample=True,
+        temperature=0.7,  # Control randomness (lower = more deterministic)
+        top_p=0.9,        # Nucleus sampling
+        repetition_penalty=1.2  # Reduce repetition
+    )
     
     # Extract generated response
     response_text = outputs[0]["generated_text"].split("Bot:")[-1].strip()
@@ -99,23 +108,33 @@ def analyze_alert():
     if not question:
         return jsonify({"error": "A question is required"}), 400
 
-    user_id = request.remote_addr  # Track conversations per user
+    user_id = request.remote_addr  # Use IP as a basic session ID
     if user_id not in chat_histories:
-        chat_histories[user_id] = [
-            {"role": "system", "content": "You are a security alert analysis assistant."}
-        ]
+        chat_histories[user_id] = []
 
-    # Append user query
-    chat_histories[user_id].append({"role": "user", "content": question})
+    # Append the user query
+    chat_histories[user_id].append(f"User: {question}")
+
+    # Format conversation history into a single string
+    system_prompt = "You are a helpful and friendly network security analyst. Answer questions accurately and concisely."
+    conversation = system_prompt + "\n\n" + "\n".join(chat_histories[user_id]) + "\nBot:"
 
     # Generate response
-    outputs = pipe(chat_histories[user_id], max_new_tokens=512)
+    outputs = pipe(
+        conversation, 
+        max_new_tokens=100,
+        pad_token_id=tokenizer.eos_token_id,
+        do_sample=True,
+        temperature=0.7,  # Control randomness (lower = more deterministic)
+        top_p=0.9,        # Nucleus sampling
+        repetition_penalty=1.2  # Reduce repetition
+    )
     
     # Extract generated response
-    response_text = outputs[0]["generated_text"][-1]["content"]
+    response_text = outputs[0]["generated_text"].split("Bot:")[-1].strip()
 
     # Append chatbot response to history
-    chat_histories[user_id].append({"role": "assistant", "content": response_text})
+    chat_histories[user_id].append(f"Bot: {response_text}")
 
     return jsonify({
         "analysis": response_text,

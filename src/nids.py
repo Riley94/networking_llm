@@ -13,7 +13,7 @@ class IntrusionDetectionSystem:
         self.detection_engine = DetectionEngine()
         self.alert_system = AlertSystem(
             log_file="ids_alerts.log",
-            #llm_endpoint="[YOUR_GROK_ENDPOINT]/analyze_alert"
+            llm_endpoint="https://cbf6-2605-a601-af2e-da00-124d-6617-5893-a3ef.ngrok-free.app"
         )
 
     def start(self):
@@ -101,14 +101,6 @@ def choose_interface():
 if __name__ == "__main__":
     # Initialize IDS with default interface
     ids = IntrusionDetectionSystem()
-    
-    # Train the anomaly detector if needed
-    TRAIN = False
-    if TRAIN:
-        print("Loading training data...")
-        train_data = get_luflow(num_rows=75_000)
-        print("Training anomaly detector...")
-        ids.detection_engine.train_anomaly_detector(train_data)
     
     # Start the IDS
     ids.start()
