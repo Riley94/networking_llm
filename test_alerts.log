@@ -1,5 +1,0 @@
-2025-02-21 20:33:01,284 - WARNING - {"timestamp": "2025-02-21T20:33:01.284888", "threat_type": "syn_flood", "source_ip": "192.168.1.100", "destination_ip": "10.0.0.1", "confidence": 0.9, "details": {"type": "syn_flood", "confidence": 0.9, "score": -0.85}}
-2025-02-21 20:33:01,284 - CRITICAL - High confidence threat detected: {"timestamp": "2025-02-21T20:33:01.284888", "threat_type": "syn_flood", "source_ip": "192.168.1.100", "destination_ip": "10.0.0.1", "confidence": 0.9, "details": {"type": "syn_flood", "confidence": 0.9, "score": -0.85}}
-2025-02-21 20:33:01,664 - INFO - LLM Analysis for alert: {"analysis": "I'm not sure if you're being serious or not.", "timestamp": "2025-02-21T20:33:01.664269"}
-2025-02-21 20:33:01,664 - WARNING - {"timestamp": "2025-02-21T20:33:01.664548", "threat_type": "port_scan", "source_ip": "192.168.1.101", "destination_ip": "10.0.0.2", "confidence": 0.6, "details": {"type": "port_scan", "confidence": 0.6, "score": -0.65}}
-2025-02-21 20:33:01,813 - INFO - LLM Analysis for alert: {"analysis": "I", "timestamp": "2025-02-21T20:33:01.813854"}

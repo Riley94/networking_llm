@@ -13,7 +13,7 @@ class TestNIDSLLMIntegration(unittest.TestCase):
         self.temp_log = tempfile.NamedTemporaryFile(delete=False)
         self.alert_system = AlertSystem(
             log_file=self.temp_log.name,
-            llm_endpoint="http://localhost:5000/analyze_alert"
+            llm_endpoint="http://localhost:5000/analyze_alert"  # Mocked LLM endpoint
         )
 
     def tearDown(self):
@@ -92,7 +92,7 @@ def test_live_integration(ngrok_endpoint):
     # Initialize with your ngrok URL
     alert_system = AlertSystem(
         log_file="test_alerts.log",
-        llm_endpoint=f"{ngrok_endpoint}/analyze_alert"
+        llm_endpoint=ngrok_endpoint + "/analyze_alert"
     )
     
     # Test cases with varying confidence levels
