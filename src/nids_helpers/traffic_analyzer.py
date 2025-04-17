@@ -1,4 +1,5 @@
 from collections import defaultdict
+from queue import Queue
 from datetime import datetime
 from typing import Dict, Tuple, List
 import numpy as np
@@ -19,7 +20,7 @@ class TrafficAnalyzer:
             'fin_seen': False,
             'rst_seen': False
         })
-        self.completed_flows: List[Dict] = []
+        self.completed_flows = Queue(100) # maxsize=100, arbitrary limit
 
     def compute_entropy(self, payloads: List[bytes]) -> float:
         if not payloads:
@@ -89,7 +90,6 @@ class TrafficAnalyzer:
             "proto": proto,
             "src_port": src_port,
             "total_entropy": total_entropy,
-            "label": 0,  # Default label
             "duration": duration,
             "Year": current_time.year,
             "Month": current_time.month,
@@ -97,7 +97,7 @@ class TrafficAnalyzer:
         }
         
         # Add to completed flows and cleanup
-        self.completed_flows.append(flow_features)
+        self.completed_flows.put(flow_features)
         del self.flow_stats[flow_key]
         
         return flow_features
@@ -143,9 +143,9 @@ class TrafficAnalyzer:
             if hasattr(packet.tcp, 'flags'):
                 try:
                     flags = int(packet.tcp.flags, 16)  # Convert to an integer
-                    if flags & 0x01:  # FIN flag
+                    if flags & 0x01:  # FIN flag - graceful closure
                         stats['fin_seen'] = True
-                    if flags & 0x04:  # RST flag
+                    if flags & 0x04:  # RST flag - abrupt reset
                         stats['rst_seen'] = True
                 except ValueError:
                     print("Could not parse TCP flags:", packet.tcp.flags)
@@ -155,6 +155,7 @@ class TrafficAnalyzer:
                 return self.finalize_flow(flow_key, proto, port_src, port_dst)
             
             # For active flows, return current features
+            # may use this later, for packet-level analysis
             current_entropy = self.compute_entropy(stats['payloads'])
             current_duration = current_time - stats['start_time']
             current_time_obj = datetime.now()
@@ -179,5 +180,5 @@ class TrafficAnalyzer:
 
         return None
 
-    def get_completed_flows(self) -> List[Dict]:
+    def get_completed_flows(self) -> Queue[Dict]:
         return self.completed_flows

@@ -2,9 +2,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import HyperParameters as H
-import Utils as U
-import Data_cleanup
+import src.HyperParameters as H
+import src.Utils as U
+import src.Data_cleanup
 
 def map_values(training_dataset):
     feature_map_bin, feature_map_bout, feature_map_proto = {}, {}, {}

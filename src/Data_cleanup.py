@@ -4,8 +4,8 @@ import torch
 import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import MinMaxScaler
-import HyperParameters as H
-import Utils as U
+import src.HyperParameters as H
+import src.Utils as U
 import pickle
 
 def load_data():
@@ -13,6 +13,7 @@ def load_data():
     print("Loading data...")
     try:
         df = pd.read_parquet(U.raw_data)
+        print(df.columns)
         # Detailed min and max with column names
         for column in df.columns:
             print(f"{column}:")

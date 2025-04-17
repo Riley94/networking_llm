@@ -12,7 +12,7 @@ class PacketCapture:
         if hasattr(packet, 'ip') and hasattr(packet, 'tcp'):
             self.packet_queue.put(packet)
 
-    def start_capture(self, interface="wlo1"):
+    def start_capture(self, interface):
         def capture_thread():
             self.capture = pyshark.LiveCapture(
                 interface=interface,

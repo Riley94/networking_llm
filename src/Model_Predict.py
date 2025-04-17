@@ -13,12 +13,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 
-import Data_cleanup
-import HyperParameters as H
-import Utils as U
-import Dataset as D
-import preprocessing_functions
-import Model
+import src.HyperParameters as H
+import src.Utils as U
+import src.preprocessing_functions as preprocessing_functions
+from src.Model import Network_Dection_Model
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
@@ -44,7 +42,7 @@ num_embeds = model_params['num_embeds']
 print(embed_dims)
 print(num_embeds)
 
-model = Model.Network_Dection_Model(H.OUTPUT_DIM, #'avg_ipt', 'entropy', 'total_entropy', 'duration', 1 output neuron
+model = Network_Dection_Model(H.OUTPUT_DIM, #'avg_ipt', 'entropy', 'total_entropy', 'duration', 1 output neuron
                                     embed_dims[0], num_embeds[0], #Bin
                                     embed_dims[1], num_embeds[1], #Bout
                                     embed_dims[2], num_embeds[2], #Pin
@@ -138,7 +136,7 @@ def chat_with_ai(payload):
     assistant_response = response["choices"][0]["message"]["content"]
     return assistant_response
 
-def test_model(amount=1000): #Test the model on the test data
+def test_model(amount=10000): #Test the model on the test data
     #Load test data to test model
 
     test_data = torch.load(U.test_data, weights_only=True).T
@@ -151,6 +149,15 @@ def test_model(amount=1000): #Test the model on the test data
     false_neg = 0
     suspect_neg = 0
     false_pos_on_outlier = 0
+    correct = 0
+    false_pos = 0
+    false_neg = 0
+    suspect_neg = 0
+    false_pos_on_outlier = 0
+    normal_correct = 0
+    anomalous_correct = 0
+    normal_data = 0
+    anomalous_data = 0 
     for x in range(amount):
         ridx = random.randint(0, len(test_data)-1) #Random index to test
         d = test_data[:, ridx]
@@ -168,15 +175,50 @@ def test_model(amount=1000): #Test the model on the test data
             suspect_neg += 1
         elif pred == 2 and label == 1:
             false_pos_on_outlier += 1
+        if pred == 0 and label == 0:
+            normal_correct += 1
+        elif pred != 0 and label != 0:
+            anomalous_correct += 1
+        if label == 0:
+            normal_data += 1
+        else:
+            anomalous_data += 1
     preds = torch.tensor(preds)
 
+    # Calculate percentages
+    correct_pct = (correct / amount) * 100
+    false_pos_pct = (false_pos / amount) * 100
+    false_neg_pct = (false_neg / amount) * 100
+    suspect_neg_pct = (suspect_neg / amount) * 100
+    false_pos_outlier_pct = (false_pos_on_outlier / amount) * 100
+    normal_correct_pct = (normal_correct / normal_data) * 100
+    anomalous_correct_pct = (anomalous_correct / anomalous_data) * 100
+
+    # Print metrics
     print("\n---=== Metrics ===---")
-    print(f"% Correct: {(correct/amount)*100:.2f}%")
-    print(f"False positive %: {(false_pos/amount)*100:.2f}%")
-    print(f"False negative %: {(false_neg/amount)*100:.2f}%")
-    print(f"Suspected malicious that were actually malicious %: {(suspect_neg/amount)*100:.2f}%")
-    print(f"Malicious predict on outliers: {(false_pos_on_outlier/amount)*100:.2f}%")
+    print(f"% Correct: {correct_pct:.2f}%")
+    print(f"False positive: {false_pos_pct:.2f}%")
+    print(f"False negative: {false_neg_pct:.2f}%")
+    print(f"Outlier predict on malicious: {suspect_neg_pct:.2f}%")
+    print(f"Malicious predict on outliers: {false_pos_outlier_pct:.2f}%")
+    print(f"Correct on normal data flow: {normal_correct_pct}%")
+    print(f"Correcnt on anomalous data flow: {anomalous_correct_pct}")
     print("-----------------------")
+
+    # Visualization
+    labels = ["Correct", "False Positives", "False Negatives", "Outlier on malicious", "Mal on Outliers", "IDing Normal Data", "IDing Anomalous Data"]
+    values = [correct_pct, false_pos_pct, false_neg_pct, suspect_neg_pct, false_pos_outlier_pct, normal_correct_pct, anomalous_correct_pct]
+
+    plt.figure(figsize=(8, 5))
+    plt.bar(labels, values, color=["green", "red", "blue", "orange", "purple", "Yellow", "Pink"])
+    plt.ylabel("Percentage")
+    plt.title("Model Performance Metrics")
+    plt.ylim(0, 100)
+
+    for i, v in enumerate(values):
+        plt.text(i, v + 2, f"{v:.2f}%", ha="center", fontsize=10)
+
+    plt.show()
 
 if __name__ == "__main__":
     #chat_loop()

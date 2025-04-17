@@ -318,8 +318,6 @@ percentage_update = .25
 update = int(len(Train_Loader) * percentage_update)
 amt = 0
 
-
-
 for epoch in range(H.EPOCHS):
     print(f"=== EPOCH {epoch + 1} ===")
     model.train()
